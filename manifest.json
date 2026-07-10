@@ -1,6 +1,17 @@
 {
-    "version": "",
-    "thumbnail": "",
-    "id": "",
-    "name": ""
+    "version": "1.0.0",
+    "thumbnail": "assets/info.png",
+    "id": "com_oparada_GoveeStreamController",
+    "name": "Govee Streamcontroller",
+    "descriptions": {
+        "en_US": "Control Govee smart lights and appliances directly from your StreamController deck."
+    },
+    "short-descriptions": {
+        "en_US": "Control Govee smart lights"
+    },
+    "tags": "Smart Home",
+    "minimum-version": "1.0.0",
+    "app-version": "1.1.1-alpha",
+    "description": "Control Govee smart lights and appliances directly from your StreamController deck.",
+    "short-description": "Control Govee smart lights"
 }
