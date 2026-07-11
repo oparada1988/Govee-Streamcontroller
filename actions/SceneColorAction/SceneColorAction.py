@@ -9,7 +9,7 @@ import threading
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Gtk, Adw, GLib
+from gi.repository import Gtk, Adw, GLib, Gdk
 
 class SceneColorAction(ActionBase):
     def __init__(self, *args, **kwargs):
@@ -46,11 +46,21 @@ class SceneColorAction(ActionBase):
         current_mode = settings.get("mode", "color")
         self.mode_selector.set_selected(0 if current_mode == "color" else 1)
         
-        # 3. Color EntryRow
-        self.color_entry = Adw.EntryRow(
-            title="Color Hex (e.g. #FF0000)",
-            text=settings.get("color_hex", "#FFFFFF")
+        # 3. Color Picker Button inside an ActionRow
+        self.color_button = Gtk.ColorButton()
+        self.color_button.set_valign(Gtk.Align.CENTER)
+        
+        # Parse initial color
+        current_color = settings.get("color_hex", "#FFFFFF")
+        rgba = Gdk.RGBA()
+        rgba.parse(current_color)
+        self.color_button.set_rgba(rgba)
+        
+        self.color_row = Adw.ActionRow(
+            title="Set Color",
+            subtitle="Click the color block to pick a color"
         )
+        self.color_row.add_suffix(self.color_button)
         
         # 4. Scene ComboRow
         self.scene_model = Gtk.StringList()
@@ -166,10 +176,14 @@ class SceneColorAction(ActionBase):
             if mode == "scene" and not self.scenes_map:
                 trigger_scenes_fetch()
                     
-        def on_color_changed(entry, *args):
-            text = entry.get_text().strip()
+        def on_color_set(button):
+            rgba = button.get_rgba()
+            r = int(rgba.red * 255)
+            g = int(rgba.green * 255)
+            b = int(rgba.blue * 255)
+            hex_color = f"#{r:02X}{g:02X}{b:02X}"
             s = self.get_settings()
-            s["color_hex"] = text
+            s["color_hex"] = hex_color
             self.set_settings(s)
 
         def on_scene_changed(combo, *args):
@@ -194,12 +208,12 @@ class SceneColorAction(ActionBase):
         def update_visibility():
             s = self.get_settings() or {}
             mode = s.get("mode", "color")
-            self.color_entry.set_visible(mode == "color")
+            self.color_row.set_visible(mode == "color")
             self.scene_selector.set_visible(mode == "scene")
             
         self.device_selector.connect("notify::selected-item", on_device_changed)
         self.mode_selector.connect("notify::selected-item", on_mode_changed)
-        self.color_entry.connect("notify::text", on_color_changed)
+        self.color_button.connect("color-set", on_color_set)
         self.scene_selector.connect("notify::selected-item", on_scene_changed)
         self.refresh_button.connect("clicked", on_refresh_clicked)
         
@@ -218,7 +232,7 @@ class SceneColorAction(ActionBase):
         return [
             self.device_selector,
             self.mode_selector,
-            self.color_entry,
+            self.color_row,
             self.scene_selector,
             self.refresh_row
         ]
