@@ -62,7 +62,6 @@ class SimpleAction(ActionBase):
             title="Color Hex (e.g. #FF0000)",
             text=settings.get("color_hex", "")
         )
-        self.color_entry.set_placeholder_text("e.g. #FF0000 (leave blank to select color)")
         
         # 4. Scene ComboRow (Blank default option by default)
         self.scene_model = Gtk.StringList()
