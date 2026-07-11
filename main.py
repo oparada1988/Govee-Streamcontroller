@@ -5,7 +5,7 @@ from src.backend.PluginManager.ActionHolder import ActionHolder
 # Import python & gtk modules
 import os
 import gi
-import logging
+from loguru import logger
 import threading
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
@@ -16,8 +16,6 @@ from .actions.SimpleAction.SimpleAction import SimpleAction
 from .actions.BrightnessAction.BrightnessAction import BrightnessAction
 from .actions.SceneColorAction.SceneColorAction import SceneColorAction
 from .govee_api import GoveeAPIClient
-
-logger = logging.getLogger("GoveeStreamController.Plugin")
 
 class PluginTemplate(PluginBase):
     def __init__(self):

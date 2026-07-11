@@ -4,17 +4,13 @@ from src.backend.DeckManagement.InputIdentifier import Input, InputEvent
 
 # Import python modules
 import os
-import logging
+from loguru import logger
 import threading
 import time
-
-# Import gtk modules - used for the config rows
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, GLib
-
-logger = logging.getLogger("GoveeStreamController.BrightnessAction")
 
 class BrightnessAction(ActionBase):
     def __init__(self, *args, **kwargs):

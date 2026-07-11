@@ -6,16 +6,12 @@ from src.backend.PluginManager.PluginBase import PluginBase
 
 # Import python modules
 import os
-import logging
+from loguru import logger
 import threading
-
-# Import gtk modules - used for the config rows
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, GLib
-
-logger = logging.getLogger("GoveeStreamController.SimpleAction")
 
 class SimpleAction(ActionBase):
     def __init__(self, *args, **kwargs):

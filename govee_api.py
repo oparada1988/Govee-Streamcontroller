@@ -2,10 +2,8 @@ import urllib.request
 import urllib.error
 import json
 import uuid
-import logging
+from loguru import logger
 from typing import List, Dict, Any, Optional
-
-logger = logging.getLogger("GoveeStreamController.API")
 
 class GoveeAPIClient:
     BASE_URL = "https://openapi.api.govee.com"
@@ -43,6 +41,22 @@ class GoveeAPIClient:
             except Exception:
                 err_content = ""
             logger.error(f"HTTP Error {e.code}: {err_content or e.reason}")
+            return None
+        except urllib.error.URLError as e:
+            # Check if it's an SSL certificate verification error
+            if "CERTIFICATE_VERIFY_FAILED" in str(e.reason) or "verify failed" in str(e.reason):
+                logger.warning("SSL Certificate verification failed. Retrying with unverified context...")
+                try:
+                    import ssl
+                    context = ssl._create_unverified_context()
+                    with urllib.request.urlopen(req, timeout=10, context=context) as response:
+                        res_data = response.read().decode("utf-8")
+                        if res_data:
+                            return json.loads(res_data)
+                        return {}
+                except Exception as retry_err:
+                    logger.error(f"Retry with unverified context failed: {retry_err}")
+            logger.error(f"URL Error sending request to Govee API: {e.reason}")
             return None
         except Exception as e:
             logger.error(f"Error sending request to Govee API: {e}")
