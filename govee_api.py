@@ -69,7 +69,11 @@ class GoveeAPIClient:
         """
         response = self._send_request("GET", "/router/api/v1/user/devices")
         if response and response.get("code") == 200:
-            return response.get("data", {}).get("devices", [])
+            data = response.get("data")
+            if isinstance(data, list):
+                return data
+            elif isinstance(data, dict):
+                return data.get("devices", [])
         return []
 
     def get_device_state(self, device: str, sku: str) -> Optional[Dict[str, Any]]:
