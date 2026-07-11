@@ -86,37 +86,6 @@ class SimpleAction(ActionBase):
         self.devices_map = []
         self.scenes_map = []
         
-        # Populating function for devices
-        def populate_devices(devices):
-            self.devices_map = []
-            new_model = Gtk.StringList()
-            
-            selected_idx = 0
-            current_device_id = settings.get("device_id", "")
-            
-            if not devices:
-                new_model.append("No devices found (Check API Key)")
-                self.devices_map.append(("", "", "No devices"))
-            else:
-                for idx, dev in enumerate(devices):
-                    dev_id = dev.get("device")
-                    sku = dev.get("sku")
-                    name = dev.get("deviceName", "Unnamed Device")
-                    display_text = f"{name} ({sku})"
-                    new_model.append(display_text)
-                    self.devices_map.append((dev_id, sku, name))
-                    
-                    if dev_id == current_device_id:
-                        selected_idx = idx
-                        
-            self.device_selector.set_model(new_model)
-            if self.devices_map:
-                self.device_selector.set_selected(selected_idx)
-                # Fetch scenes if the action mode is currently set to Scene
-                s = self.get_settings() or {}
-                if s.get("action_type") == "scene":
-                    trigger_scenes_fetch()
-
         # Fetch scenes for current device
         def trigger_scenes_fetch(force_refresh=False):
             s = self.get_settings() or {}
@@ -157,6 +126,37 @@ class SimpleAction(ActionBase):
                     self.scene_selector.set_selected(selected_scene_idx)
                     
             self.plugin_base.fetch_scenes_async(dev_id, sku, on_scenes_fetched, force_refresh=force_refresh)
+
+        # Populating function for devices
+        def populate_devices(devices):
+            self.devices_map = []
+            new_model = Gtk.StringList()
+            
+            selected_idx = 0
+            current_device_id = settings.get("device_id", "")
+            
+            if not devices:
+                new_model.append("No devices found (Check API Key)")
+                self.devices_map.append(("", "", "No devices"))
+            else:
+                for idx, dev in enumerate(devices):
+                    dev_id = dev.get("device")
+                    sku = dev.get("sku")
+                    name = dev.get("deviceName", "Unnamed Device")
+                    display_text = f"{name} ({sku})"
+                    new_model.append(display_text)
+                    self.devices_map.append((dev_id, sku, name))
+                    
+                    if dev_id == current_device_id:
+                        selected_idx = idx
+                        
+            self.device_selector.set_model(new_model)
+            if self.devices_map:
+                self.device_selector.set_selected(selected_idx)
+                # Fetch scenes if the action mode is currently set to Scene
+                s = self.get_settings() or {}
+                if s.get("action_type") == "scene":
+                    trigger_scenes_fetch()
 
         # Connect events
         def on_device_changed(combo, *args):

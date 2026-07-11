@@ -23,10 +23,15 @@ class PluginTemplate(PluginBase):
     def __init__(self):
         super().__init__()
 
-        ## Initialize cache
+        ## Initialize cache & coalescing lists
         self.devices = []
         self.devices_loading = False
+        self.devices_callbacks = []
+        
         self.scenes_cache = {}
+        self.scenes_callbacks = {}
+        self.scenes_loading = set()
+        
         self.api_key_prompt_active = False
 
         ## Initialize Govee API Client
@@ -72,6 +77,9 @@ class PluginTemplate(PluginBase):
                 callback(self.devices)
             return
 
+        if callback:
+            self.devices_callbacks.append(callback)
+
         if self.devices_loading:
             return
 
@@ -86,8 +94,10 @@ class PluginTemplate(PluginBase):
                 logger.error(f"Error fetching Govee devices: {e}")
             finally:
                 self.devices_loading = False
-                if callback:
-                    GLib.idle_add(callback, self.devices)
+                callbacks_to_run = list(self.devices_callbacks)
+                self.devices_callbacks.clear()
+                for cb in callbacks_to_run:
+                    GLib.idle_add(cb, self.devices)
 
         threading.Thread(target=run_fetch, daemon=True).start()
 
@@ -96,6 +106,16 @@ class PluginTemplate(PluginBase):
             if callback:
                 callback(self.scenes_cache[device])
             return
+
+        if callback:
+            if device not in self.scenes_callbacks:
+                self.scenes_callbacks[device] = []
+            self.scenes_callbacks[device].append(callback)
+
+        if device in self.scenes_loading:
+            return
+
+        self.scenes_loading.add(device)
 
         def run_fetch():
             try:
@@ -106,9 +126,11 @@ class PluginTemplate(PluginBase):
             except Exception as e:
                 logger.error(f"Error fetching Govee scenes: {e}")
                 scenes = []
-            
-            if callback:
-                GLib.idle_add(callback, scenes)
+            finally:
+                self.scenes_loading.discard(device)
+                callbacks_to_run = self.scenes_callbacks.pop(device, [])
+                for cb in callbacks_to_run:
+                    GLib.idle_add(cb, scenes)
 
         threading.Thread(target=run_fetch, daemon=True).start()
 
@@ -156,7 +178,7 @@ class PluginTemplate(PluginBase):
                 d.destroy()
                 
             dialog.connect("response", on_response)
-            dialog.show()
+            dialog.present()
             return False
             
         GLib.idle_add(show_prompt)
