@@ -57,7 +57,7 @@ class PluginTemplate(PluginBase):
             plugin_base = self,
             action_base = SceneColorAction,
             action_id = "com_oparada_GoveeStreamController::SceneColorAction",
-            action_name = "Scene & Color",
+            action_name = "Scene and Color",
         )
         self.add_action_holder(self.scenecolor_action_holder)
 
