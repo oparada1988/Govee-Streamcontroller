@@ -22,6 +22,7 @@ class GoveeAPIClient:
         headers = {
             "Govee-API-Key": self.api_key,
             "Content-Type": "application/json",
+            "User-Agent": "GoveeStreamController/1.0",
         }
 
         data = None
