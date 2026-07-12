@@ -13,7 +13,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, GLib, Gdk
 
-class SimpleAction(ActionBase):
+class PowerToggleAction(ActionBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.devices_map = []

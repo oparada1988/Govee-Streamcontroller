@@ -12,7 +12,7 @@ gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, GLib
 
 # Import actions
-from .actions.SimpleAction.SimpleAction import SimpleAction
+from .actions.PowerToggleAction.PowerToggleAction import PowerToggleAction
 from .actions.BrightnessAction.BrightnessAction import BrightnessAction
 from .actions.ColorAction.ColorAction import ColorAction
 from .actions.SceneAction.SceneAction import SceneAction
@@ -38,13 +38,13 @@ class PluginTemplate(PluginBase):
         self.govee_client = GoveeAPIClient(settings.get("api_key", ""))
 
         ## Register actions
-        self.simple_action_holder = ActionHolder(
+        self.power_toggle_action_holder = ActionHolder(
             plugin_base = self,
-            action_base = SimpleAction,
-            action_id = "com_oparada_GoveeStreamController::SimpleAction",
+            action_base = PowerToggleAction,
+            action_id = "com_oparada_GoveeStreamController::PowerToggleAction",
             action_name = "Power Toggle",
         )
-        self.add_action_holder(self.simple_action_holder)
+        self.add_action_holder(self.power_toggle_action_holder)
 
         self.brightness_action_holder = ActionHolder(
             plugin_base = self,
