@@ -1,6 +1,7 @@
 # Govee Plugin for StreamController
 
-<img src="assets/thumbnail.png" width="128" height="128" align="right" alt="Govee Plugin Thumbnail" />
+<img width="1000" height="360" alt="g14" src="https://github.com/user-attachments/assets/bb638178-7659-455c-8033-fe36437ef376" />
+
 
 Control your Govee smart lights and appliances directly from your StreamDeck or StreamController deck! This plugin integrates natively with the Govee Developer API to provide real-time control, feedback, and beautiful dynamic lighting visuals directly on your physical keys.
 
