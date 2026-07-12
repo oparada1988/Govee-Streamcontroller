@@ -91,7 +91,7 @@ class GoveeAPIClient:
         }
         response = self._send_request("POST", "/router/api/v1/device/state", body)
         if response and response.get("code") == 200:
-            return response.get("data", {})
+            return response.get("payload", response.get("data", {}))
         return None
 
     def control_device(self, device: str, sku: str, capability_type: str, instance: str, value: Any) -> bool:
