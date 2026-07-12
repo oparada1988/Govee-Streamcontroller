@@ -12,6 +12,38 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, GLib
 
+def kelvin_to_rgb(kelvin: int) -> tuple[int, int, int]:
+    # Linear interpolation between known points
+    # 2000K -> (255, 137, 18)
+    # 2700K -> (255, 166, 81)
+    # 4000K -> (255, 209, 163)
+    # 6500K -> (255, 255, 255)
+    # 9000K -> (190, 215, 255)
+    if kelvin <= 2000:
+        return (255, 137, 18)
+    elif kelvin <= 2700:
+        t = (kelvin - 2000) / 700.0
+        return (255, int(137 + t * (166 - 137)), int(18 + t * (81 - 18)))
+    elif kelvin <= 4000:
+        t = (kelvin - 2700) / 1300.0
+        return (255, int(166 + t * (209 - 166)), int(81 + t * (163 - 81)))
+    elif kelvin <= 6500:
+        t = (kelvin - 4000) / 2500.0
+        return (255, int(209 + t * (255 - 209)), int(163 + t * (255 - 163)))
+    elif kelvin <= 9000:
+        t = (kelvin - 6500) / 2500.0
+        return (int(255 - t * (255 - 190)), int(255 - t * (255 - 215)), 255)
+    else:
+        return (190, 215, 255)
+
+def brightness_to_rgb(brightness: int) -> tuple[int, int, int]:
+    # Interpolate between dark standby (35, 35, 40) and warm glow (255, 235, 150)
+    b = max(0, min(100, brightness)) / 100.0
+    r = int(35 + (255 - 35) * b)
+    g = int(35 + (235 - 35) * b)
+    b_val = int(40 + (150 - 40) * b)
+    return (r, g, b_val)
+
 class BrightnessAction(ActionBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -33,11 +65,29 @@ class BrightnessAction(ActionBase):
             if dev_name:
                 self.set_top_label(dev_name)
         
+        # Initialize background color & bottom label visuals
+        self.update_visuals()
+
         # Check Govee API Key configuration
         self.plugin_base.prompt_api_key_if_missing()
         
         # Load initial device status in background
         threading.Thread(target=self._fetch_initial_state, daemon=True).start()
+
+    def update_visuals(self) -> None:
+        settings = self.get_settings() or {}
+        mode = settings.get("control_mode", "brightness")
+        
+        if mode == "brightness":
+            val = getattr(self, "current_brightness", settings.get("target_brightness", 100))
+            r, g, b = brightness_to_rgb(val)
+            self.set_background_color(color=[r, g, b, 255])
+            self.set_bottom_label(f"{val}%")
+        else:
+            val = getattr(self, "current_temperature", settings.get("target_temperature", 4000))
+            r, g, b = kelvin_to_rgb(val)
+            self.set_background_color(color=[r, g, b, 255])
+            self.set_bottom_label(f"{val:,} K")
 
     def get_step_size(self) -> int:
         settings = self.get_settings() or {}
@@ -197,6 +247,7 @@ class BrightnessAction(ActionBase):
                     s["device_name"] = name
                     self.set_settings(s)
                     self.set_top_label(name)
+                    self.update_visuals()
                     # Fetch new device's initial state
                     threading.Thread(target=self._fetch_initial_state, daemon=True).start()
 
@@ -207,6 +258,7 @@ class BrightnessAction(ActionBase):
             s["control_mode"] = mode
             self.set_settings(s)
             update_visibility()
+            self.update_visuals()
             # Fetch new mode status
             threading.Thread(target=self._fetch_initial_state, daemon=True).start()
 
@@ -215,6 +267,8 @@ class BrightnessAction(ActionBase):
             s = self.get_settings()
             s["target_brightness"] = val
             self.set_settings(s)
+            self.current_brightness = val
+            self.update_visuals()
 
         def on_brightness_step_changed(scale):
             val = int(scale.get_value())
@@ -227,6 +281,8 @@ class BrightnessAction(ActionBase):
             s = self.get_settings()
             s["target_temperature"] = val
             self.set_settings(s)
+            self.current_temperature = val
+            self.update_visuals()
 
         def on_temp_step_changed(scale):
             val = int(scale.get_value())
@@ -296,6 +352,9 @@ class BrightnessAction(ActionBase):
                     elif cap_type == "devices.capabilities.color_setting" and instance == "colorTemperatureK":
                         self.current_temperature = int(val if val is not None else 4000)
                         logger.info(f"Fetched initial temperature: {self.current_temperature}")
+                
+                # Dynamically update the GUI visuals on successful fetch
+                GLib.idle_add(self.update_visuals)
         except Exception as e:
             logger.error(f"Error fetching initial device state: {e}")
 
@@ -327,6 +386,9 @@ class BrightnessAction(ActionBase):
             self.current_temperature = max(2000, min(9000, self.current_temperature + delta))
             logger.info(f"Local temperature adjusted to: {self.current_temperature}")
             target_value = self.current_temperature
+
+        # Instantly update key background & bottom label values in real-time
+        self.update_visuals()
 
         if self.debounce_timer_id:
             GLib.source_remove(self.debounce_timer_id)
@@ -375,6 +437,9 @@ class BrightnessAction(ActionBase):
             self.current_brightness = target
         else:
             self.current_temperature = target
+            
+        # Update visuals
+        self.update_visuals()
 
     def toggle_power(self):
         threading.Thread(target=self._execute_toggle_power, daemon=True).start()
