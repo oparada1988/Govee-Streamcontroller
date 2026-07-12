@@ -16,16 +16,33 @@ class ColorAction(ActionBase):
         self.devices_map = []
         
     def on_ready(self) -> None:
-        icon_path = os.path.join(self.plugin_base.PATH, "assets", "color.png")
+        icon_path = os.path.join(self.plugin_base.PATH, "assets", "color_transparent.png")
         self.set_media(media_path=icon_path, size=0.75)
+
+        settings = self.get_settings() or {}
 
         # Set top label to device name by default if not set
         current_top = self.labels.get("top", {}).get("text", "")
         if not current_top:
-            settings = self.get_settings() or {}
             dev_name = settings.get("device_name", "")
             if dev_name:
                 self.set_top_label(dev_name)
+
+        # Set background color to selected color natively
+        hex_color = settings.get("color_hex", "#FFFFFF")
+        hex_clean = hex_color.lstrip('#')
+        try:
+            r = int(hex_clean[0:2], 16)
+            g = int(hex_clean[2:4], 16)
+            b = int(hex_clean[4:6], 16)
+        except Exception:
+            r, g, b = 255, 255, 255
+        self.set_background_color(color=[r, g, b, 255])
+
+        # Set bottom label to color hex by default if not set
+        current_bottom = self.labels.get("bottom", {}).get("text", "")
+        if not current_bottom:
+            self.set_bottom_label(hex_color)
 
         # Check Govee API Key configuration
         self.plugin_base.prompt_api_key_if_missing()
@@ -120,6 +137,8 @@ class ColorAction(ActionBase):
             s = self.get_settings()
             s["color_hex"] = hex_color
             self.set_settings(s)
+            self.set_background_color(color=[r, g, b, 255])
+            self.set_bottom_label(hex_color)
 
         def on_refresh_clicked(button):
             self.refresh_button.set_sensitive(False)
