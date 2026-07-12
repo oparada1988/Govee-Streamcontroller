@@ -257,10 +257,6 @@ class SceneAction(ActionBase):
                 # Default text drawing
                 draw.text((10, 105), scene_name, fill=(255, 0, 0))
             else:
-                # Pill dimensions (from y=96 to y=124, height 28)
-                pill_box = [4, 96, 124, 124]
-                draw.rounded_rectangle(pill_box, radius=8, fill=(0, 0, 0, 255), outline=(255, 0, 0), width=2)
-                
                 # Starting font size 20 for maximum readability, auto-scales down if name is longer
                 font_size = 20
                 font = ImageFont.truetype(font_path, font_size)
@@ -279,10 +275,11 @@ class SceneAction(ActionBase):
                 bbox = font.getbbox(scene_name)
                 text_h = bbox[3] - bbox[1]
                 
+                # Center text inside the bottom area (x: 4 to 124, y: 96 to 124)
                 text_x = 4 + (120 - text_w) // 2
                 text_y = 96 + (28 - text_h) // 2 - bbox[1]
                 
-                draw.text((text_x, text_y), scene_name, fill=(255, 0, 0), font=font)
+                draw.text((text_x, text_y), scene_name, fill=(255, 255, 255), font=font)
                 
             # Set the media directly using PIL Image
             self.set_media(image=canvas, size=1.0)
