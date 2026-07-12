@@ -9,6 +9,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, GLib
+from PIL import Image, ImageDraw, ImageFont
 
 class SceneAction(ActionBase):
     def __init__(self, *args, **kwargs):
@@ -17,8 +18,7 @@ class SceneAction(ActionBase):
         self.scenes_map = []
         
     def on_ready(self) -> None:
-        icon_path = os.path.join(self.plugin_base.PATH, "assets", "scene.png")
-        self.set_media(media_path=icon_path, size=0.75)
+        self.update_key_image()
 
         # Check Govee API Key configuration
         self.plugin_base.prompt_api_key_if_missing()
@@ -142,12 +142,17 @@ class SceneAction(ActionBase):
             idx = combo.get_selected()
             if 0 <= idx < len(self.scenes_map):
                 name, val = self.scenes_map[idx]
+                s = self.get_settings()
                 if val:
-                    s = self.get_settings()
                     s["scene_name"] = name
                     s["scene_id"] = val.get("id")
                     s["scene_param_id"] = val.get("paramId")
-                    self.set_settings(s)
+                else:
+                    s["scene_name"] = ""
+                    s["scene_id"] = None
+                    s["scene_param_id"] = None
+                self.set_settings(s)
+                self.update_key_image()
             
         def on_refresh_clicked(button):
             self.refresh_button.set_sensitive(False)
@@ -215,3 +220,66 @@ class SceneAction(ActionBase):
                 
         except Exception as e:
             logger.error(f"Error executing Govee scene action: {e}")
+
+    def update_key_image(self) -> None:
+        settings = self.get_settings() or {}
+        scene_name = settings.get("scene_name", "")
+        
+        if not scene_name:
+            icon_path = os.path.join(self.plugin_base.PATH, "assets", "scene.png")
+            self.set_media(media_path=icon_path, size=0.75)
+            return
+
+        try:
+            # Create a black canvas (128x128)
+            canvas = Image.new("RGBA", (128, 128), (0, 0, 0, 255))
+            
+            # Load and scale the base icon
+            icon_path = os.path.join(self.plugin_base.PATH, "assets", "scene.png")
+            if os.path.exists(icon_path):
+                icon = Image.open(icon_path)
+                icon_scaled = icon.resize((96, 96), Image.Resampling.LANCZOS)
+                canvas.paste(icon_scaled, (16, 2), icon_scaled)
+            
+            draw = ImageDraw.Draw(canvas)
+            
+            # Use DejaVu Sans Bold
+            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            if not os.path.exists(font_path):
+                font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+                
+            # Fallback if DejaVu Sans TTF is completely missing (unlikely on Linux)
+            if not os.path.exists(font_path):
+                font = ImageFont.load_default()
+                # Default text drawing
+                draw.text((10, 105), scene_name, fill=(255, 0, 0))
+            else:
+                # Pill dimensions
+                pill_box = [4, 98, 124, 124]
+                draw.rounded_rectangle(pill_box, radius=8, fill=(0, 0, 0, 255), outline=(255, 0, 0), width=2)
+                
+                # Dynamic text scaling
+                font_size = 14
+                font = ImageFont.truetype(font_path, font_size)
+                
+                text_w = draw.textlength(scene_name, font=font)
+                while text_w > 112 and font_size > 8:
+                    font_size -= 1
+                    font = ImageFont.truetype(font_path, font_size)
+                    text_w = draw.textlength(scene_name, font=font)
+                    
+                bbox = font.getbbox(scene_name)
+                text_h = bbox[3] - bbox[1]
+                
+                text_x = 4 + (120 - text_w) // 2
+                text_y = 98 + (26 - text_h) // 2 - bbox[1]
+                
+                draw.text((text_x, text_y), scene_name, fill=(255, 0, 0), font=font)
+                
+            # Set the media directly using PIL Image
+            self.set_media(image=canvas, size=1.0)
+        except Exception as e:
+            logger.error(f"Error rendering dynamic scene icon: {e}")
+            # Fallback
+            icon_path = os.path.join(self.plugin_base.PATH, "assets", "scene.png")
+            self.set_media(media_path=icon_path, size=0.75)
