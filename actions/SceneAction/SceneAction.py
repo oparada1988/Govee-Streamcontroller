@@ -243,36 +243,44 @@ class SceneAction(ActionBase):
             
             draw = ImageDraw.Draw(canvas)
             
-            # Use DejaVu Sans Bold
-            font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            # Load font from the bundled path in assets
+            font_path = os.path.join(self.plugin_base.PATH, "assets", "fonts", "DejaVuSans-Bold.ttf")
+            
+            # Fallback if font missing for some reason
             if not os.path.exists(font_path):
-                font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+                font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+                if not os.path.exists(font_path):
+                    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
                 
-            # Fallback if DejaVu Sans TTF is completely missing (unlikely on Linux)
             if not os.path.exists(font_path):
                 font = ImageFont.load_default()
                 # Default text drawing
                 draw.text((10, 105), scene_name, fill=(255, 0, 0))
             else:
-                # Pill dimensions
-                pill_box = [4, 98, 124, 124]
+                # Pill dimensions (from y=96 to y=124, height 28)
+                pill_box = [4, 96, 124, 124]
                 draw.rounded_rectangle(pill_box, radius=8, fill=(0, 0, 0, 255), outline=(255, 0, 0), width=2)
                 
-                # Dynamic text scaling
-                font_size = 14
+                # Starting font size 20 for maximum readability, auto-scales down if name is longer
+                font_size = 20
                 font = ImageFont.truetype(font_path, font_size)
                 
                 text_w = draw.textlength(scene_name, font=font)
-                while text_w > 112 and font_size > 8:
+                bbox = font.getbbox(scene_name)
+                text_h = bbox[3] - bbox[1]
+                
+                while (text_w > 110 or text_h > 20) and font_size > 8:
                     font_size -= 1
                     font = ImageFont.truetype(font_path, font_size)
                     text_w = draw.textlength(scene_name, font=font)
+                    bbox = font.getbbox(scene_name)
+                    text_h = bbox[3] - bbox[1]
                     
                 bbox = font.getbbox(scene_name)
                 text_h = bbox[3] - bbox[1]
                 
                 text_x = 4 + (120 - text_w) // 2
-                text_y = 98 + (26 - text_h) // 2 - bbox[1]
+                text_y = 96 + (28 - text_h) // 2 - bbox[1]
                 
                 draw.text((text_x, text_y), scene_name, fill=(255, 0, 0), font=font)
                 
