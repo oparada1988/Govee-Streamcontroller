@@ -14,7 +14,8 @@ from gi.repository import Gtk, Adw, GLib
 # Import actions
 from .actions.SimpleAction.SimpleAction import SimpleAction
 from .actions.BrightnessAction.BrightnessAction import BrightnessAction
-from .actions.SceneColorAction.SceneColorAction import SceneColorAction
+from .actions.ColorAction.ColorAction import ColorAction
+from .actions.SceneAction.SceneAction import SceneAction
 from .govee_api import GoveeAPIClient
 
 class PluginTemplate(PluginBase):
@@ -53,13 +54,21 @@ class PluginTemplate(PluginBase):
         )
         self.add_action_holder(self.brightness_action_holder)
 
-        self.scenecolor_action_holder = ActionHolder(
+        self.color_action_holder = ActionHolder(
             plugin_base = self,
-            action_base = SceneColorAction,
-            action_id = "com_oparada_GoveeStreamController::SceneColorAction",
-            action_name = "Scene and Color",
+            action_base = ColorAction,
+            action_id = "com_oparada_GoveeStreamController::ColorAction",
+            action_name = "Set Color",
         )
-        self.add_action_holder(self.scenecolor_action_holder)
+        self.add_action_holder(self.color_action_holder)
+
+        self.scene_action_holder = ActionHolder(
+            plugin_base = self,
+            action_base = SceneAction,
+            action_id = "com_oparada_GoveeStreamController::SceneAction",
+            action_name = "Apply Scene",
+        )
+        self.add_action_holder(self.scene_action_holder)
 
         # Register plugin
         self.register(

@@ -1,6 +1,5 @@
 # Import StreamController modules
 from src.backend.PluginManager.ActionBase import ActionBase
-from src.backend.DeckManagement.InputIdentifier import Input, InputEvent
 
 # Import python modules
 import os
@@ -9,9 +8,9 @@ import threading
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Gtk, Adw, GLib, Gdk
+from gi.repository import Gtk, Adw, GLib
 
-class SceneColorAction(ActionBase):
+class SceneAction(ActionBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.devices_map = []
@@ -35,41 +34,14 @@ class SceneColorAction(ActionBase):
             title="Govee Device"
         )
         
-        # 2. Mode ComboRow (Color vs Scene)
-        self.mode_model = Gtk.StringList()
-        self.mode_model.append("Set Color")
-        self.mode_model.append("Apply Scene")
-        self.mode_selector = Adw.ComboRow(
-            model=self.mode_model,
-            title="Action Mode"
-        )
-        current_mode = settings.get("mode", "color")
-        self.mode_selector.set_selected(0 if current_mode == "color" else 1)
-        
-        # 3. Color Picker Button inside an ActionRow
-        self.color_button = Gtk.ColorButton()
-        self.color_button.set_valign(Gtk.Align.CENTER)
-        
-        # Parse initial color
-        current_color = settings.get("color_hex", "#FFFFFF")
-        rgba = Gdk.RGBA()
-        rgba.parse(current_color)
-        self.color_button.set_rgba(rgba)
-        
-        self.color_row = Adw.ActionRow(
-            title="Set Color",
-            subtitle="Click the color block to pick a color"
-        )
-        self.color_row.add_suffix(self.color_button)
-        
-        # 4. Scene ComboRow
+        # 2. Scene ComboRow
         self.scene_model = Gtk.StringList()
         self.scene_selector = Adw.ComboRow(
             model=self.scene_model,
             title="Select Scene"
         )
         
-        # 5. Refresh Devices row & button
+        # 3. Refresh Devices row & button
         self.refresh_button = Gtk.Button.new_from_icon_name("view-refresh-symbolic")
         self.refresh_button.set_valign(Gtk.Align.CENTER)
         self.refresh_button.set_tooltip_text("Refresh Govee Devices/Scenes")
@@ -166,26 +138,6 @@ class SceneColorAction(ActionBase):
                     self.set_settings(s)
                     trigger_scenes_fetch()
                     
-        def on_mode_changed(combo, *args):
-            idx = combo.get_selected()
-            mode = "color" if idx == 0 else "scene"
-            s = self.get_settings()
-            s["mode"] = mode
-            self.set_settings(s)
-            update_visibility()
-            if mode == "scene" and not self.scenes_map:
-                trigger_scenes_fetch()
-                    
-        def on_color_set(button):
-            rgba = button.get_rgba()
-            r = int(rgba.red * 255)
-            g = int(rgba.green * 255)
-            b = int(rgba.blue * 255)
-            hex_color = f"#{r:02X}{g:02X}{b:02X}"
-            s = self.get_settings()
-            s["color_hex"] = hex_color
-            self.set_settings(s)
-
         def on_scene_changed(combo, *args):
             idx = combo.get_selected()
             if 0 <= idx < len(self.scenes_map):
@@ -204,16 +156,8 @@ class SceneColorAction(ActionBase):
                 trigger_scenes_fetch(force_refresh=True)
                 self.refresh_button.set_sensitive(True)
             self.plugin_base.fetch_devices_async(on_refresh_done, force_refresh=True)
-
-        def update_visibility():
-            s = self.get_settings() or {}
-            mode = s.get("mode", "color")
-            self.color_row.set_visible(mode == "color")
-            self.scene_selector.set_visible(mode == "scene")
             
         self.device_selector.connect("notify::selected-item", on_device_changed)
-        self.mode_selector.connect("notify::selected-item", on_mode_changed)
-        self.color_button.connect("color-set", on_color_set)
         self.scene_selector.connect("notify::selected-item", on_scene_changed)
         self.refresh_button.connect("clicked", on_refresh_clicked)
         
@@ -226,13 +170,8 @@ class SceneColorAction(ActionBase):
             self.device_selector.set_model(new_model)
             self.plugin_base.fetch_devices_async(populate_devices)
             
-        # Initialize visibility
-        update_visibility()
-            
         return [
             self.device_selector,
-            self.mode_selector,
-            self.color_row,
             self.scene_selector,
             self.refresh_row
         ]
@@ -247,7 +186,6 @@ class SceneColorAction(ActionBase):
         settings = self.get_settings()
         device_id = settings.get("device_id")
         sku = settings.get("device_sku")
-        mode = settings.get("mode", "color")
         
         if not device_id or not sku:
             logger.warning("Action triggered but device is not configured.")
@@ -259,34 +197,21 @@ class SceneColorAction(ActionBase):
             return
 
         try:
-            if mode == "color":
-                hex_str = settings.get("color_hex", "#FFFFFF").lstrip('#')
-                # Convert hex to integer
-                try:
-                    color_val = int(hex_str, 16)
-                except ValueError:
-                    logger.warning(f"Invalid hex color format: {hex_str}, defaulting to white")
-                    color_val = 16777215 # White
+            scene_id = settings.get("scene_id")
+            param_id = settings.get("scene_param_id")
+            scene_name = settings.get("scene_name", "Unknown Scene")
+            
+            if scene_id is None or param_id is None:
+                logger.warning("Action triggered but scene is not configured.")
+                return
                 
-                logger.info(f"Setting device {device_id} ({sku}) color to {hex_str} (value: {color_val})")
-                client.control_device(device_id, sku, "devices.capabilities.color_setting", "colorRgb", color_val)
-                
-            elif mode == "scene":
-                scene_id = settings.get("scene_id")
-                param_id = settings.get("scene_param_id")
-                scene_name = settings.get("scene_name", "Unknown Scene")
-                
-                if scene_id is None or param_id is None:
-                    logger.warning("Action triggered but scene is not configured.")
-                    return
-                    
-                value = {
-                    "id": int(scene_id),
-                    "paramId": int(param_id)
-                }
-                
-                logger.info(f"Applying scene '{scene_name}' (value: {value}) to device {device_id} ({sku})")
-                client.control_device(device_id, sku, "devices.capabilities.dynamic_scene", "lightScene", value)
+            value = {
+                "id": int(scene_id),
+                "paramId": int(param_id)
+            }
+            
+            logger.info(f"Applying scene '{scene_name}' (value: {value}) to device {device_id} ({sku})")
+            client.control_device(device_id, sku, "devices.capabilities.dynamic_scene", "lightScene", value)
                 
         except Exception as e:
-            logger.error(f"Error executing Govee action: {e}")
+            logger.error(f"Error executing Govee scene action: {e}")
