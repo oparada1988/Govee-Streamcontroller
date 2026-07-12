@@ -141,7 +141,7 @@ class PluginTemplate(PluginBase):
 
         threading.Thread(target=run_fetch, daemon=True).start()
 
-    def prompt_api_key_if_missing(self):
+    def prompt_api_key_if_missing(self, callback=None):
         settings = self.get_settings()
         api_key = settings.get("api_key", "")
         if api_key or getattr(self, "api_key_prompt_active", False):
@@ -150,8 +150,17 @@ class PluginTemplate(PluginBase):
         self.api_key_prompt_active = True
 
         def show_prompt():
+            app = Gtk.Application.get_default()
+            parent_window = None
+            if app:
+                parent_window = app.get_active_window()
+                if not parent_window:
+                    windows = app.get_windows()
+                    if windows:
+                        parent_window = windows[0]
+
             dialog = Gtk.MessageDialog(
-                transient_for=None,
+                transient_for=parent_window,
                 modal=True,
                 message_type=Gtk.MessageType.QUESTION,
                 buttons=Gtk.ButtonsType.OK_CANCEL,
@@ -181,7 +190,7 @@ class PluginTemplate(PluginBase):
                         self.set_settings(s)
                         self.govee_client.api_key = new_key
                         # Force refresh devices list automatically on key input
-                        self.fetch_devices_async(force_refresh=True)
+                        self.fetch_devices_async(callback=callback, force_refresh=True)
                 d.destroy()
                 
             dialog.connect("response", on_response)

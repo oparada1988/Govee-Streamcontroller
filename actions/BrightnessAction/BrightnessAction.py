@@ -312,7 +312,12 @@ class BrightnessAction(ActionBase):
             new_model = Gtk.StringList()
             new_model.append("Loading devices...")
             self.device_selector.set_model(new_model)
-            self.plugin_base.fetch_devices_async(populate_dropdown)
+            
+            api_key = self.plugin_base.get_settings().get("api_key", "")
+            if not api_key:
+                self.plugin_base.prompt_api_key_if_missing(callback=populate_dropdown)
+            else:
+                self.plugin_base.fetch_devices_async(populate_dropdown)
             
         # Initial visibility settings
         update_visibility()
