@@ -58,3 +58,6 @@ Fetch and apply any dynamic Govee scene in real-time.
 1. **Obtain your Govee Developer API Key**: Request your key inside the Govee Home mobile app under *User Center* -> *Developer Website*.
 2. **Configure the Plugin Settings**: Paste your API key under the global **Govee Plugin Settings** page in the StreamController settings panel. If missing, the plugin will automatically prompt you for it when configuring an action.
 3. **Customize your Keys**: Drag any Govee action to your deck, select your device from the populated dropdown lists, and customize the top label using StreamController's default label settings!
+
+---
+Notice: Plugin was written/updated with assistance of Google Antigravity
