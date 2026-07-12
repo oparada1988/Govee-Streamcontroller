@@ -22,7 +22,6 @@ class SimpleAction(ActionBase):
     def on_ready(self) -> None:
         icon_path = os.path.join(self.plugin_base.PATH, "assets", "govee.png")
         self.set_media(media_path=icon_path, size=0.75)
-        self.update_labels()
         
         # Check Govee API Key configuration
         self.plugin_base.prompt_api_key_if_missing()
@@ -38,13 +37,7 @@ class SimpleAction(ActionBase):
             title="Govee Device"
         )
         
-        # 2. Device Label EntryRow
-        self.device_label_entry = Adw.EntryRow(
-            title="Device Label",
-            text=settings.get("device_label", "")
-        )
-        
-        # 3. Action Type ComboRow (Toggle, Turn On, Turn Off, Set Color, Apply Scene)
+        # 2. Action Type ComboRow (Toggle, Turn On, Turn Off, Set Color, Apply Scene)
         self.action_type_model = Gtk.StringList()
         self.action_type_model.append("Toggle Power")
         self.action_type_model.append("Turn On")
@@ -60,7 +53,7 @@ class SimpleAction(ActionBase):
         action_type_idx = {"toggle": 0, "on": 1, "off": 2, "color": 3, "scene": 4}.get(current_action_type, 0)
         self.action_type_selector.set_selected(action_type_idx)
         
-        # 4. Color Picker Button inside an ActionRow
+        # 3. Color Picker Button inside an ActionRow
         self.color_button = Gtk.ColorButton()
         self.color_button.set_valign(Gtk.Align.CENTER)
         
@@ -76,14 +69,14 @@ class SimpleAction(ActionBase):
         )
         self.color_row.add_suffix(self.color_button)
         
-        # 5. Scene ComboRow (Blank default option by default)
+        # 4. Scene ComboRow (Blank default option by default)
         self.scene_model = Gtk.StringList()
         self.scene_selector = Adw.ComboRow(
             model=self.scene_model,
             title="Select Scene"
         )
         
-        # 6. Refresh Devices row & button
+        # 5. Refresh Devices row & button
         self.refresh_button = Gtk.Button.new_from_icon_name("view-refresh-symbolic")
         self.refresh_button.set_valign(Gtk.Align.CENTER)
         self.refresh_button.set_tooltip_text("Refresh Govee Devices/Scenes")
@@ -180,21 +173,10 @@ class SimpleAction(ActionBase):
                     s["device_id"] = dev_id
                     s["device_sku"] = sku
                     s["device_name"] = name
-                    # Update label if empty or matched old device name
-                    if not s.get("device_label") or s.get("device_label") == s.get("device_name"):
-                        s["device_label"] = name
-                        self.device_label_entry.set_text(name)
                     self.set_settings(s)
+                    self.set_top_label(name)
                     if s.get("action_type") == "scene":
                         trigger_scenes_fetch()
-                    self.update_labels()
-                    
-        def on_device_label_changed(entry, *args):
-            text = entry.get_text().strip()
-            s = self.get_settings()
-            s["device_label"] = text
-            self.set_settings(s)
-            self.update_labels()
                     
         def on_action_type_changed(combo, *args):
             idx = combo.get_selected()
@@ -249,7 +231,6 @@ class SimpleAction(ActionBase):
             self.scene_selector.set_visible(action_type == "scene")
             
         self.device_selector.connect("notify::selected-item", on_device_changed)
-        self.device_label_entry.connect("notify::text", on_device_label_changed)
         self.action_type_selector.connect("notify::selected-item", on_action_type_changed)
         self.color_button.connect("color-set", on_color_set)
         self.scene_selector.connect("notify::selected-item", on_scene_changed)
@@ -269,7 +250,6 @@ class SimpleAction(ActionBase):
             
         return [
             self.device_selector,
-            self.device_label_entry,
             self.action_type_selector,
             self.color_row,
             self.scene_selector,
@@ -351,8 +331,3 @@ class SimpleAction(ActionBase):
                 client.control_device(device_id, sku, "devices.capabilities.dynamic_scene", "lightScene", value)
         except Exception as e:
             logger.error(f"Error executing Govee action: {e}")
-
-    def update_labels(self) -> None:
-        settings = self.get_settings() or {}
-        device_label = settings.get("device_label", settings.get("device_name", ""))
-        self.set_top_label(device_label)
