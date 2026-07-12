@@ -18,7 +18,7 @@ class SceneAction(ActionBase):
         
     def on_ready(self) -> None:
         icon_path = os.path.join(self.plugin_base.PATH, "assets", "scene.png")
-        self.set_media(media_path=icon_path, size=0.75)
+        self.set_media(media_path=icon_path, size=1.0)
 
         # Set labels to device/scene names by default if not set
         current_top = self.labels.get("top", {}).get("text", "")
