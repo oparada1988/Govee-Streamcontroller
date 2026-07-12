@@ -1,6 +1,6 @@
 {
     "version": "1.0.0",
-    "thumbnail": "assets/g14.png",
+    "thumbnail": "assets/thumbnail.png",
     "id": "com_oparada_GoveeStreamController",
     "name": "Govee Streamcontroller",
     "descriptions": {
