@@ -9,7 +9,6 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, GLib
-from PIL import Image, ImageDraw, ImageFont
 
 class SceneAction(ActionBase):
     def __init__(self, *args, **kwargs):
@@ -18,7 +17,9 @@ class SceneAction(ActionBase):
         self.scenes_map = []
         
     def on_ready(self) -> None:
-        self.update_key_image()
+        icon_path = os.path.join(self.plugin_base.PATH, "assets", "scene.png")
+        self.set_media(media_path=icon_path, size=0.75)
+        self.update_labels()
 
         # Check Govee API Key configuration
         self.plugin_base.prompt_api_key_if_missing()
@@ -34,14 +35,20 @@ class SceneAction(ActionBase):
             title="Govee Device"
         )
         
-        # 2. Scene ComboRow
+        # 2. Device Label EntryRow
+        self.device_label_entry = Adw.EntryRow(
+            title="Device Label",
+            text=settings.get("device_label", "")
+        )
+        
+        # 3. Scene ComboRow
         self.scene_model = Gtk.StringList()
         self.scene_selector = Adw.ComboRow(
             model=self.scene_model,
             title="Select Scene"
         )
         
-        # 3. Refresh Devices row & button
+        # 4. Refresh Devices row & button
         self.refresh_button = Gtk.Button.new_from_icon_name("view-refresh-symbolic")
         self.refresh_button.set_valign(Gtk.Align.CENTER)
         self.refresh_button.set_tooltip_text("Refresh Govee Devices/Scenes")
@@ -135,8 +142,20 @@ class SceneAction(ActionBase):
                     s["device_id"] = dev_id
                     s["device_sku"] = sku
                     s["device_name"] = name
+                    # Update label if it was empty or matched the old device name
+                    if not s.get("device_label") or s.get("device_label") == s.get("device_name"):
+                        s["device_label"] = name
+                        self.device_label_entry.set_text(name)
                     self.set_settings(s)
                     trigger_scenes_fetch()
+                    self.update_labels()
+                    
+        def on_device_label_changed(entry, *args):
+            text = entry.get_text().strip()
+            s = self.get_settings()
+            s["device_label"] = text
+            self.set_settings(s)
+            self.update_labels()
                     
         def on_scene_changed(combo, *args):
             idx = combo.get_selected()
@@ -152,7 +171,7 @@ class SceneAction(ActionBase):
                     s["scene_id"] = None
                     s["scene_param_id"] = None
                 self.set_settings(s)
-                self.update_key_image()
+                self.update_labels()
             
         def on_refresh_clicked(button):
             self.refresh_button.set_sensitive(False)
@@ -163,6 +182,7 @@ class SceneAction(ActionBase):
             self.plugin_base.fetch_devices_async(on_refresh_done, force_refresh=True)
             
         self.device_selector.connect("notify::selected-item", on_device_changed)
+        self.device_label_entry.connect("notify::text", on_device_label_changed)
         self.scene_selector.connect("notify::selected-item", on_scene_changed)
         self.refresh_button.connect("clicked", on_refresh_clicked)
         
@@ -177,6 +197,7 @@ class SceneAction(ActionBase):
             
         return [
             self.device_selector,
+            self.device_label_entry,
             self.scene_selector,
             self.refresh_row
         ]
@@ -221,70 +242,9 @@ class SceneAction(ActionBase):
         except Exception as e:
             logger.error(f"Error executing Govee scene action: {e}")
 
-    def update_key_image(self) -> None:
+    def update_labels(self) -> None:
         settings = self.get_settings() or {}
+        device_label = settings.get("device_label", settings.get("device_name", ""))
         scene_name = settings.get("scene_name", "")
-        
-        if not scene_name:
-            icon_path = os.path.join(self.plugin_base.PATH, "assets", "scene.png")
-            self.set_media(media_path=icon_path, size=0.75)
-            return
-
-        try:
-            # Create a black canvas (128x128)
-            canvas = Image.new("RGBA", (128, 128), (0, 0, 0, 255))
-            
-            # Load and scale the base icon
-            icon_path = os.path.join(self.plugin_base.PATH, "assets", "scene.png")
-            if os.path.exists(icon_path):
-                icon = Image.open(icon_path)
-                icon_scaled = icon.resize((96, 96), Image.Resampling.LANCZOS)
-                canvas.paste(icon_scaled, (16, 2), icon_scaled)
-            
-            draw = ImageDraw.Draw(canvas)
-            
-            # Load font from the bundled path in assets
-            font_path = os.path.join(self.plugin_base.PATH, "assets", "fonts", "DejaVuSans-Bold.ttf")
-            
-            # Fallback if font missing for some reason
-            if not os.path.exists(font_path):
-                font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-                if not os.path.exists(font_path):
-                    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-                
-            if not os.path.exists(font_path):
-                font = ImageFont.load_default()
-                # Default text drawing
-                draw.text((10, 105), scene_name, fill=(255, 0, 0))
-            else:
-                # Starting font size 20 for maximum readability, auto-scales down if name is longer
-                font_size = 20
-                font = ImageFont.truetype(font_path, font_size)
-                
-                text_w = draw.textlength(scene_name, font=font)
-                bbox = font.getbbox(scene_name)
-                text_h = bbox[3] - bbox[1]
-                
-                while (text_w > 110 or text_h > 20) and font_size > 8:
-                    font_size -= 1
-                    font = ImageFont.truetype(font_path, font_size)
-                    text_w = draw.textlength(scene_name, font=font)
-                    bbox = font.getbbox(scene_name)
-                    text_h = bbox[3] - bbox[1]
-                    
-                bbox = font.getbbox(scene_name)
-                text_h = bbox[3] - bbox[1]
-                
-                # Center text inside the bottom area (x: 4 to 124, y: 96 to 124)
-                text_x = 4 + (120 - text_w) // 2
-                text_y = 96 + (28 - text_h) // 2 - bbox[1]
-                
-                draw.text((text_x, text_y), scene_name, fill=(255, 255, 255), font=font)
-                
-            # Set the media directly using PIL Image
-            self.set_media(image=canvas, size=1.0)
-        except Exception as e:
-            logger.error(f"Error rendering dynamic scene icon: {e}")
-            # Fallback
-            icon_path = os.path.join(self.plugin_base.PATH, "assets", "scene.png")
-            self.set_media(media_path=icon_path, size=0.75)
+        self.set_top_label(device_label)
+        self.set_bottom_label(scene_name)
