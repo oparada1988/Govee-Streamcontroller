@@ -54,7 +54,7 @@ class BrightnessAction(ActionBase):
         self.last_api_call_time = 0.0
         
     def on_ready(self) -> None:
-        icon_path = os.path.join(self.plugin_base.PATH, "assets", "brightness.png")
+        icon_path = os.path.join(self.plugin_base.PATH, "assets", "brightness-temperature-transparent.png")
         self.set_media(media_path=icon_path, size=0.75)
         
         # Set top label to device name by default if not set
