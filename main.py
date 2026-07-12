@@ -50,7 +50,7 @@ class PluginTemplate(PluginBase):
             plugin_base = self,
             action_base = BrightnessAction,
             action_id = "com_oparada_GoveeStreamController::BrightnessAction",
-            action_name = "Brightness Control",
+            action_name = "Brightness / Temp",
         )
         self.add_action_holder(self.brightness_action_holder)
 

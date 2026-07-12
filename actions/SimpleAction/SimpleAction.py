@@ -23,8 +23,44 @@ class SimpleAction(ActionBase):
         icon_path = os.path.join(self.plugin_base.PATH, "assets", "govee.png")
         self.set_media(media_path=icon_path, size=0.75)
         
+        # Set top label to device name by default if not set
+        current_top = self.labels.get("top", {}).get("text", "")
+        if not current_top:
+            settings = self.get_settings() or {}
+            dev_name = settings.get("device_name", "")
+            if dev_name:
+                self.set_top_label(dev_name)
+
         # Check Govee API Key configuration
         self.plugin_base.prompt_api_key_if_missing()
+
+        # Fetch initial state
+        threading.Thread(target=self._fetch_initial_state, daemon=True).start()
+
+    def _fetch_initial_state(self):
+        settings = self.get_settings()
+        device_id = settings.get("device_id")
+        sku = settings.get("device_sku")
+        if not device_id or not sku:
+            return
+        client = self.plugin_base.govee_client
+        if not client or not client.api_key:
+            return
+        try:
+            state_data = client.get_device_state(device_id, sku)
+            current_power = None
+            if state_data:
+                capabilities = state_data.get("capabilities", [])
+                for cap in capabilities:
+                    if (cap.get("type") == "devices.capabilities.on_off" and 
+                        cap.get("instance") == "powerSwitch"):
+                        current_power = cap.get("state", {}).get("value")
+                        break
+            if current_power is not None:
+                label = "ON" if current_power == 1 else "OFF"
+                GLib.idle_add(self.set_bottom_label, label)
+        except Exception as e:
+            logger.error(f"Error fetching initial power state: {e}")
 
     def get_config_rows(self) -> list:
         # Load settings
@@ -177,6 +213,8 @@ class SimpleAction(ActionBase):
                     self.set_top_label(name)
                     if s.get("action_type") == "scene":
                         trigger_scenes_fetch()
+                    # Fetch initial power state
+                    threading.Thread(target=self._fetch_initial_state, daemon=True).start()
                     
         def on_action_type_changed(combo, *args):
             idx = combo.get_selected()
@@ -281,9 +319,11 @@ class SimpleAction(ActionBase):
             if action_type == "on":
                 logger.info(f"Turning ON device {device_id} ({sku})")
                 client.control_device(device_id, sku, "devices.capabilities.on_off", "powerSwitch", 1)
+                GLib.idle_add(self.set_bottom_label, "ON")
             elif action_type == "off":
                 logger.info(f"Turning OFF device {device_id} ({sku})")
                 client.control_device(device_id, sku, "devices.capabilities.on_off", "powerSwitch", 0)
+                GLib.idle_add(self.set_bottom_label, "OFF")
             elif action_type == "toggle":
                 logger.info(f"Toggling power state for device {device_id} ({sku})")
                 # 1. Fetch current state
@@ -301,6 +341,8 @@ class SimpleAction(ActionBase):
                 target_value = 0 if current_power == 1 else 1
                 logger.info(f"Current power state: {current_power}, sending value: {target_value}")
                 client.control_device(device_id, sku, "devices.capabilities.on_off", "powerSwitch", target_value)
+                label = "ON" if target_value == 1 else "OFF"
+                GLib.idle_add(self.set_bottom_label, label)
             elif action_type == "color":
                 hex_str = settings.get("color_hex", "").strip().lstrip('#')
                 if not hex_str:
