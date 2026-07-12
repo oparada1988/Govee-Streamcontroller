@@ -19,6 +19,14 @@ class ColorAction(ActionBase):
         icon_path = os.path.join(self.plugin_base.PATH, "assets", "color.png")
         self.set_media(media_path=icon_path, size=0.75)
 
+        # Set top label to device name by default if not set
+        current_top = self.labels.get("top", {}).get("text", "")
+        if not current_top:
+            settings = self.get_settings() or {}
+            dev_name = settings.get("device_name", "")
+            if dev_name:
+                self.set_top_label(dev_name)
+
         # Check Govee API Key configuration
         self.plugin_base.prompt_api_key_if_missing()
 
@@ -101,6 +109,7 @@ class ColorAction(ActionBase):
                     s["device_sku"] = sku
                     s["device_name"] = name
                     self.set_settings(s)
+                    self.set_top_label(name)
                     
         def on_color_set(button):
             rgba = button.get_rgba()
