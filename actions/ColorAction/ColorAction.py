@@ -16,7 +16,7 @@ class ColorAction(ActionBase):
         self.devices_map = []
         
     def on_ready(self) -> None:
-        icon_path = os.path.join(self.plugin_base.PATH, "assets", "info.png")
+        icon_path = os.path.join(self.plugin_base.PATH, "assets", "color.png")
         self.set_media(media_path=icon_path, size=0.75)
 
         # Check Govee API Key configuration
