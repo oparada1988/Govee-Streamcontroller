@@ -8,7 +8,7 @@ import threading
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Gtk, Adw, GLib
+from gi.repository import Gtk, Adw, GLib, Gdk
 
 class SceneAction(ActionBase):
     def __init__(self, *args, **kwargs):
@@ -16,6 +16,47 @@ class SceneAction(ActionBase):
         self.devices_map = []
         self.scenes_map = []
         
+    def _update_background_color(self, scene_name: str, manual_hex: str = None) -> None:
+        if manual_hex and manual_hex.startswith("#"):
+            hex_clean = manual_hex.lstrip('#')
+            try:
+                r = int(hex_clean[0:2], 16)
+                g = int(hex_clean[2:4], 16)
+                b = int(hex_clean[4:6], 16)
+                self.set_background_color(color=[r, g, b, 255])
+                return
+            except Exception as e:
+                logger.error(f"Error parsing manual hex color {manual_hex}: {e}")
+
+        if not scene_name:
+            self.set_background_color(color=[30, 41, 59, 255])
+            return
+
+        name_lower = scene_name.lower()
+        color_map = {
+            ("sunset", "sunrise", "dawn", "morning", "sun"): [235, 94, 40, 255],        # Warm orange
+            ("ocean", "water", "sea", "rain", "deep", "blue"): [14, 116, 144, 255],      # Ocean cyan/blue
+            ("forest", "garden", "nature", "grass", "green", "leaves"): [21, 128, 61, 255], # Forest green
+            ("movie", "cinema", "theater", "gaming", "game"): [109, 40, 217, 255],      # Movie purple
+            ("rainbow", "colorful", "party", "dance", "disco"): [192, 38, 211, 255],    # Party magenta
+            ("candle", "fire", "cozy", "warm", "amber"): [194, 65, 12, 255],            # Cozy amber/red-orange
+            ("night", "sleep", "starry", "dream", "bed"): [30, 27, 75, 255],             # Night indigo
+            ("lightning", "storm", "thunder"): [79, 70, 229, 255],                       # Storm electric indigo
+            ("sakura", "flower", "blossom", "pink", "rose"): [219, 39, 119, 255],       # Pink
+            ("aurora", "magic", "teal"): [13, 148, 136, 255],                            # Teal/aurora
+        }
+
+        matched_color = None
+        for keywords, color in color_map.items():
+            if any(kw in name_lower for kw in keywords):
+                matched_color = color
+                break
+
+        if matched_color:
+            self.set_background_color(color=matched_color)
+        else:
+            self.set_background_color(color=[15, 118, 110, 255]) # Default Govee theme teal/blue
+
     def on_ready(self) -> None:
         icon_path = os.path.join(self.plugin_base.PATH, "assets", "scene.png")
         self.set_media(media_path=icon_path, size=1.0)
@@ -34,6 +75,13 @@ class SceneAction(ActionBase):
             scene_name = settings.get("scene_name", "")
             if scene_name:
                 self.set_bottom_label(scene_name)
+
+        # Update background color dynamically
+        settings = self.get_settings() or {}
+        scene_name = settings.get("scene_name", "")
+        use_override = settings.get("override_color", False)
+        manual_hex = settings.get("color_hex", "#FFFFFF") if use_override else None
+        self._update_background_color(scene_name, manual_hex)
 
         # Check Govee API Key configuration
         self.plugin_base.prompt_api_key_if_missing()
@@ -55,8 +103,35 @@ class SceneAction(ActionBase):
             model=self.scene_model,
             title="Select Scene"
         )
+
+        # 3. Override switch
+        self.override_switch = Gtk.Switch()
+        self.override_switch.set_valign(Gtk.Align.CENTER)
+        self.override_switch.set_active(settings.get("override_color", False))
         
-        # 3. Refresh Devices row & button
+        self.override_row = Adw.ActionRow(
+            title="Manual Color Override",
+            subtitle="Manually override the automatic scene background color"
+        )
+        self.override_row.add_suffix(self.override_switch)
+        
+        # 4. Color Picker Button inside an ActionRow
+        self.color_button = Gtk.ColorButton()
+        self.color_button.set_valign(Gtk.Align.CENTER)
+        
+        # Parse initial color
+        current_color = settings.get("color_hex", "#FFFFFF")
+        rgba = Gdk.RGBA()
+        rgba.parse(current_color)
+        self.color_button.set_rgba(rgba)
+        
+        self.color_row = Adw.ActionRow(
+            title="Custom Key Color",
+            subtitle="Click the color block to pick a custom background color"
+        )
+        self.color_row.add_suffix(self.color_button)
+        
+        # 5. Refresh Devices row & button
         self.refresh_button = Gtk.Button.new_from_icon_name("view-refresh-symbolic")
         self.refresh_button.set_valign(Gtk.Align.CENTER)
         self.refresh_button.set_tooltip_text("Refresh Govee Devices/Scenes")
@@ -170,6 +245,11 @@ class SceneAction(ActionBase):
                     s["scene_param_id"] = None
                     self.set_bottom_label("")
                 self.set_settings(s)
+                
+                # Update background color dynamically when scene changes
+                active = s.get("override_color", False)
+                manual_hex = s.get("color_hex", "#FFFFFF") if active else None
+                self._update_background_color(s.get("scene_name", ""), manual_hex)
             
         def on_refresh_clicked(button):
             self.refresh_button.set_sensitive(False)
@@ -178,10 +258,38 @@ class SceneAction(ActionBase):
                 trigger_scenes_fetch(force_refresh=True)
                 self.refresh_button.set_sensitive(True)
             self.plugin_base.fetch_devices_async(on_refresh_done, force_refresh=True)
+
+        def update_color_rows_visibility():
+            active = self.override_switch.get_active()
+            self.color_row.set_visible(active)
+
+        def on_override_toggled(switch, *args):
+            active = switch.get_active()
+            s = self.get_settings()
+            s["override_color"] = active
+            self.set_settings(s)
+            update_color_rows_visibility()
+            
+            scene_name = s.get("scene_name", "")
+            manual_hex = s.get("color_hex", "#FFFFFF") if active else None
+            self._update_background_color(scene_name, manual_hex)
+
+        def on_color_set(button):
+            rgba = button.get_rgba()
+            r = int(rgba.red * 255)
+            g = int(rgba.green * 255)
+            b = int(rgba.blue * 255)
+            hex_color = f"#{r:02X}{g:02X}{b:02X}"
+            s = self.get_settings()
+            s["color_hex"] = hex_color
+            self.set_settings(s)
+            self.set_background_color(color=[r, g, b, 255])
             
         self.device_selector.connect("notify::selected-item", on_device_changed)
         self.scene_selector.connect("notify::selected-item", on_scene_changed)
         self.refresh_button.connect("clicked", on_refresh_clicked)
+        self.override_switch.connect("notify::active", on_override_toggled)
+        self.color_button.connect("color-set", on_color_set)
         
         # Populate initial list using cache or fetch if empty
         if self.plugin_base.devices:
@@ -197,9 +305,14 @@ class SceneAction(ActionBase):
             else:
                 self.plugin_base.fetch_devices_async(populate_devices)
             
+        # Set initial visibility of the color row
+        update_color_rows_visibility()
+            
         return [
             self.device_selector,
             self.scene_selector,
+            self.override_row,
+            self.color_row,
             self.refresh_row
         ]
         

@@ -16,7 +16,7 @@ class ColorAction(ActionBase):
         self.devices_map = []
         
     def on_ready(self) -> None:
-        icon_path = os.path.join(self.plugin_base.PATH, "assets", "color_transparent.png")
+        icon_path = os.path.join(self.plugin_base.PATH, "assets", "color-transparent.png")
         self.set_media(media_path=icon_path, size=1.0)
 
         settings = self.get_settings() or {}
