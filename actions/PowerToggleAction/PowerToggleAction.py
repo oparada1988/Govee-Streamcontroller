@@ -23,13 +23,20 @@ class PowerToggleAction(ActionBase):
         icon_path = os.path.join(self.plugin_base.PATH, "assets", "govee.png")
         self.set_media(media_path=icon_path, size=1.0)
         
-        # Set top label to device name by default if not set
+        # Set top label to device name by default if not set, or re-apply cached label
         current_top = self.labels.get("top", {}).get("text", "")
         if not current_top:
             settings = self.get_settings() or {}
             dev_name = settings.get("device_name", "")
             if dev_name:
                 self.set_top_label(dev_name)
+        else:
+            self.set_top_label(current_top)
+
+        # Re-apply cached bottom label so it doesn't get lost on deck reload/resume
+        current_bottom = self.labels.get("bottom", {}).get("text", "")
+        if current_bottom:
+            self.set_bottom_label(current_bottom)
 
         # Check Govee API Key configuration
         self.plugin_base.prompt_api_key_if_missing()

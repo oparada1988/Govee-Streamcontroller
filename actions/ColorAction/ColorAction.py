@@ -21,12 +21,14 @@ class ColorAction(ActionBase):
 
         settings = self.get_settings() or {}
 
-        # Set top label to device name by default if not set
+        # Set top label to device name by default if not set, or re-apply cached label
         current_top = self.labels.get("top", {}).get("text", "")
         if not current_top:
             dev_name = settings.get("device_name", "")
             if dev_name:
                 self.set_top_label(dev_name)
+        else:
+            self.set_top_label(current_top)
 
         # Set background color to selected color natively
         hex_color = settings.get("color_hex", "#FFFFFF")
@@ -39,10 +41,12 @@ class ColorAction(ActionBase):
             r, g, b = 255, 255, 255
         self.set_background_color(color=[r, g, b, 255])
 
-        # Set bottom label to color hex by default if not set
+        # Set bottom label to color hex by default if not set, or re-apply cached label
         current_bottom = self.labels.get("bottom", {}).get("text", "")
         if not current_bottom:
             self.set_bottom_label(hex_color)
+        else:
+            self.set_bottom_label(current_bottom)
 
         # Check Govee API Key configuration
         self.plugin_base.prompt_api_key_if_missing()

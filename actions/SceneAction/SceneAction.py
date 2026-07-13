@@ -20,20 +20,25 @@ class SceneAction(ActionBase):
         icon_path = os.path.join(self.plugin_base.PATH, "assets", "scene.png")
         self.set_media(media_path=icon_path, size=1.0)
 
-        # Set labels to device/scene names by default if not set
+        # Set top label to device name by default if not set, or re-apply cached label
         current_top = self.labels.get("top", {}).get("text", "")
         if not current_top:
             settings = self.get_settings() or {}
             dev_name = settings.get("device_name", "")
             if dev_name:
                 self.set_top_label(dev_name)
+        else:
+            self.set_top_label(current_top)
 
+        # Set bottom label to scene name by default if not set, or re-apply cached label
         current_bottom = self.labels.get("bottom", {}).get("text", "")
         if not current_bottom:
             settings = self.get_settings() or {}
             scene_name = settings.get("scene_name", "")
             if scene_name:
                 self.set_bottom_label(scene_name)
+        else:
+            self.set_bottom_label(current_bottom)
 
         # Check Govee API Key configuration
         self.plugin_base.prompt_api_key_if_missing()
