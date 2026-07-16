@@ -1,6 +1,8 @@
 # Import StreamController modules
 from src.backend.PluginManager.PluginBase import PluginBase
 from src.backend.PluginManager.ActionHolder import ActionHolder
+from src.backend.DeckManagement.InputIdentifier import Input
+from src.backend.PluginManager.ActionInputSupport import ActionInputSupport
 
 # Import python & gtk modules
 import os
@@ -43,6 +45,12 @@ class PluginTemplate(PluginBase):
             action_base = PowerToggleAction,
             action_id = "com_oparada_GoveeStreamController::PowerToggleAction",
             action_name = "Power Toggle",
+            icon=Gtk.Image(file=os.path.join(self.PATH, "assets", "govee_action.png")),
+            action_support={
+                Input.Key: ActionInputSupport.SUPPORTED,
+                Input.Dial: ActionInputSupport.UNSUPPORTED,
+                Input.Touchscreen: ActionInputSupport.UNTESTED
+            }
         )
         self.add_action_holder(self.power_toggle_action_holder)
 
@@ -51,6 +59,12 @@ class PluginTemplate(PluginBase):
             action_base = BrightnessAction,
             action_id = "com_oparada_GoveeStreamController::BrightnessAction",
             action_name = "Brightness / Temp",
+            icon=Gtk.Image(file=os.path.join(self.PATH, "assets", "brightness_temp_action.png")),
+            action_support={
+                Input.Key: ActionInputSupport.SUPPORTED,
+                Input.Dial: ActionInputSupport.SUPPORTED,
+                Input.Touchscreen: ActionInputSupport.UNTESTED
+            }
         )
         self.add_action_holder(self.brightness_action_holder)
 
@@ -59,6 +73,12 @@ class PluginTemplate(PluginBase):
             action_base = ColorAction,
             action_id = "com_oparada_GoveeStreamController::ColorAction",
             action_name = "Set Color",
+            icon=Gtk.Image(file=os.path.join(self.PATH, "assets", "color_action.png")),
+            action_support={
+                Input.Key: ActionInputSupport.SUPPORTED,
+                Input.Dial: ActionInputSupport.UNSUPPORTED,
+                Input.Touchscreen: ActionInputSupport.UNTESTED
+            }
         )
         self.add_action_holder(self.color_action_holder)
 
@@ -67,6 +87,12 @@ class PluginTemplate(PluginBase):
             action_base = SceneAction,
             action_id = "com_oparada_GoveeStreamController::SceneAction",
             action_name = "Apply Scene",
+            icon=Gtk.Image(file=os.path.join(self.PATH, "assets", "scene_action.png")),
+            action_support={
+                Input.Key: ActionInputSupport.SUPPORTED,
+                Input.Dial: ActionInputSupport.UNSUPPORTED,
+                Input.Touchscreen: ActionInputSupport.UNTESTED
+            }
         )
         self.add_action_holder(self.scene_action_holder)
 
