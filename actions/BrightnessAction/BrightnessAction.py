@@ -77,19 +77,23 @@ class BrightnessAction(ActionBase):
         threading.Thread(target=self._fetch_initial_state, daemon=True).start()
 
     def update_visuals(self) -> None:
-        settings = self.get_settings() or {}
-        mode = settings.get("control_mode", "brightness")
-        
-        if mode == "brightness":
-            val = getattr(self, "current_brightness", settings.get("target_brightness", 100))
-            r, g, b = brightness_to_rgb(val)
-            self.set_background_color(color=[r, g, b, 255])
-            self.set_bottom_label(f"{val}%")
-        else:
-            val = getattr(self, "current_temperature", settings.get("target_temperature", 4000))
-            r, g, b = kelvin_to_rgb(val)
-            self.set_background_color(color=[r, g, b, 255])
-            self.set_bottom_label(f"{val:,} K")
+        def do_update():
+            settings = self.get_settings() or {}
+            mode = settings.get("control_mode", "brightness")
+            
+            if mode == "brightness":
+                val = getattr(self, "current_brightness", settings.get("target_brightness", 100))
+                r, g, b = brightness_to_rgb(val)
+                self.set_background_color(color=[r, g, b, 255])
+                self.set_bottom_label(f"{val}%")
+            else:
+                val = getattr(self, "current_temperature", settings.get("target_temperature", 4000))
+                r, g, b = kelvin_to_rgb(val)
+                self.set_background_color(color=[r, g, b, 255])
+                self.set_bottom_label(f"{val:,} K")
+            return False
+
+        GLib.idle_add(do_update)
 
     def get_step_size(self) -> int:
         settings = self.get_settings() or {}
